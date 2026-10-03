@@ -32,7 +32,7 @@ Verified October 3, 2026 against the [official CNCF curriculum](https://github.c
 
 ## Proposed architecture
 
-Self-managed learning cluster first; EKS later. All application details below are proposals pending source review.
+Self-managed learning cluster first; EKS later. Agreed service boundaries: Web displays the site, API serves listening status and metrics, and Worker polls Spotify and collects artist-origin data. PostgreSQL runs inside Kubernetes with persistent storage.
 
 ```text
 AWS EC2 lab (kubeadm + containerd + CNI)
@@ -44,26 +44,34 @@ Lab traffic → Ingress / Gateway
               ├── frontend Service → web Deployment (UI)
               └── API Service → API Deployment (current track/history)
                                   ↕
-                           datastore/cache (TBD, PVC-backed lab storage)
+                           PostgreSQL (PVC-backed storage)
                                   ↑
                            Spotify worker Deployment ← Spotify API
 ```
 
 The worker polls Spotify and updates shared data; the API serves it to the UI. Explore `cka.whatishenrylisteningto.com` as a future lab hostname. No DNS or live Render changes are part of this setup.
 
+## Infrastructure and cost control
+
+Use Terraform to provision AWS infrastructure. Kubernetes manifests will describe the application services and PostgreSQL. The lab must support shutdown and restart while preserving database data, Spotify token state, and cluster state.
+
+Recommended daily pause approach: gracefully stop workloads and then stop the EBS-backed EC2 nodes; restart the existing nodes for the next session. EBS storage remains billable while compute is stopped. Keep persistent data on EBS-backed volumes and add backups plus a verified recovery exercise. A full Terraform teardown is a separate operation: it can delete managed storage and must not be the routine pause command. Exact storage, backup, and pause/resume implementation remains pending.
+
+References: [AWS stop/start behavior](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/how-ec2-instance-stop-start-works.html), [Terraform resource destruction](https://developer.hashicorp.com/terraform/language/resources/destroy).
+
 ## Progress / status
 
 **Updated:** October 3, 2026  
 **Current phase:** Step 1 — planning  
-**Completed:** Initial repository and study/project roadmap  
-**Next:** Review the existing app's source; choose the EC2 lab budget and access approach  
-**Decisions pending:** Service boundaries, datastore, CNI, storage provisioner, routing controller  
+**Completed:** Initial roadmap; app source review; Web/API/Worker split; PostgreSQL in Kubernetes decision; Terraform requirement captured  
+**Next:** Set the AWS lab budget, one decision at a time  
+**Decisions pending:** Budget, lab access, CNI, storage provisioner, routing controller, pause/resume and backup implementation  
 **KodeKloud section:** TBD  
 **Exam date:** TBD
 
 | Step | Status | Evidence / notes |
 |---|---|---|
-| 1. Plan the lab | In progress | Initial roadmap captured; app review and budget pending |
+| 1. Plan the lab | In progress | App reviewed; service split and database agreed; budget pending |
 | 2. Containerize | Not started | |
 | 3. Build cluster | Not started | |
 | 4. Deploy and connect | Not started | |
